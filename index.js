@@ -8,6 +8,7 @@ const {
   insertUser,
   getLicenceAssignments,
 } = require("./tools/sql");
+const User = require("./userModel");
 const app = express();
 const port = process.env.PORT || 3000;
 
@@ -24,19 +25,65 @@ const db = async () => {
 db;
 
 app.get("/getallusers", async function (req, res) {
-  console.log("here");
-  let { recordsets } = await getAllUsers();
-  userRecords = recordsets[0];
+  async function userProcessing() {
+    let { recordsets } = await getAllUsers();
+    userRecords = recordsets[0];
 
-  let licenceRecords = await getLicenceAssignments();
-  licenceRecords = licenceRecords.recordsets[0];
+    let licenceRecords = await getLicenceAssignments();
+    licenceRecords = licenceRecords.recordsets[0];
 
-  let users = userRecordsProcessor(userRecords);
-  let licences = licenceRecordsProcessor(licenceRecords);
+    const users = userRecordsProcessor(userRecords);
+    const licences = licenceRecordsProcessor(licenceRecords);
 
-  let userLicenceArray = mergeByProperty(users, licences, "UserID");
+    let licencedUserClassArray = [];
+    let unlicencedUserClassArray = [];
 
-  console.log(userLicenceArray);
+    //map function converts merged licence/user objects into User class instances and adds them to the above arrays
+    users.map((u) => {
+      let licence = licences.find((obj) => {
+        return obj.UserId == u.UserId;
+      });
+      let merged = Object.assign({}, u, licence);
+      if (merged.LicenceId) {
+        merged = new User(
+          merged.UserId,
+          merged.FirstName,
+          merged.LastName,
+          merged.email,
+          merged.LicenceId,
+          merged.BundleName,
+          merged.DateAllocated
+        );
+        licencedUserClassArray.push(merged);
+      } else {
+        merged = new User(
+          merged.UserId,
+          merged.FirstName,
+          merged.LastName,
+          merged.email,
+          merged.LicenceId,
+          merged.BundleName,
+          merged.DateAllocated
+        );
+        unlicencedUserClassArray.push(merged);
+      }
+    });
+
+    const licenceCounter = {
+      totalLicences: licences.length,
+      assignedLicences: licencedUserClassArray.length,
+      get remainingLicences() {
+        return this.totalLicences - this.assignedLicences;
+      },
+    };
+
+    console.log(
+      licencedUserClassArray.filter(
+        (e) => e.bundle == "SupportSlot" && e.email.includes("planning")
+      )
+    );
+  }
+  await userProcessing();
 });
 
 app.get("/adduser", async function (req, res) {
@@ -55,7 +102,8 @@ function userRecordsProcessor(records) {
     user.UserId = rec.UserID;
     user.FirstName = rec.FirstName;
     user.LastName = rec.LastName;
-    user.email = rec.EmailName;
+    user.UserName = rec.UserName;
+    user.email = rec.EmailName.toLowerCase();
     users.push(user);
   }
   return users;
@@ -65,23 +113,11 @@ function licenceRecordsProcessor(licenceRecords) {
   let licences = [];
   for (lic of licenceRecords) {
     let licence = {};
-    licence.Id = lic.Id;
+    licence.LicenceId = lic.Id;
     licence.UserId = lic.LicensedUserId;
     licence.BundleName = lic.BundleName;
     licence.DateAllocated = lic.DateAllocated;
     licences.push(licence);
   }
   return licences;
-}
-
-function mergeByProperty(target, source, prop) {
-  source.forEach((sourceElement) => {
-    let targetElement = target.find((targetElement) => {
-      return sourceElement[prop] === targetElement[prop];
-    });
-    targetElement
-      ? Object.assign(targetElement, sourceElement)
-      : target.push(sourceElement);
-  });
-  return target;
 }
