@@ -47,6 +47,7 @@ app.get("/getallusers", async function (req, res) {
       if (merged.LicenceId) {
         merged = new User(
           merged.UserId,
+          merged.UserName,
           merged.FirstName,
           merged.LastName,
           merged.email,
@@ -58,6 +59,7 @@ app.get("/getallusers", async function (req, res) {
       } else {
         merged = new User(
           merged.UserId,
+          merged.UserName,
           merged.FirstName,
           merged.LastName,
           merged.email,
@@ -69,7 +71,7 @@ app.get("/getallusers", async function (req, res) {
       }
     });
 
-    const licenceCounter = {
+    let licenceCounter = {
       totalLicences: licences.length,
       assignedLicences: licencedUserClassArray.length,
       get remainingLicences() {
@@ -77,13 +79,19 @@ app.get("/getallusers", async function (req, res) {
       },
     };
 
-    console.log(
-      licencedUserClassArray.filter(
-        (e) => e.bundle == "SupportSlot" && e.email.includes("planning")
-      )
-    );
+    return { licencedUserClassArray, unlicencedUserClassArray, licenceCounter };
   }
-  await userProcessing();
+  let {
+    licencedUserClassArray,
+    unlicencedUserClassArray,
+    licenceCounter,
+  } = await userProcessing();
+
+  res.send({
+    licencedUsers: licencedUserClassArray,
+    unlicencedUser: unlicencedUserClassArray,
+    licenceCounter: licenceCounter,
+  });
 });
 
 app.get("/adduser", async function (req, res) {
@@ -100,6 +108,7 @@ function userRecordsProcessor(records) {
   for (rec of records) {
     let user = {};
     user.UserId = rec.UserID;
+    user.UserName = rec.UserName;
     user.FirstName = rec.FirstName;
     user.LastName = rec.LastName;
     user.UserName = rec.UserName;

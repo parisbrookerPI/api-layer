@@ -1,6 +1,7 @@
 module.exports = class User {
   constructor(
     userId,
+    userName,
     firstName,
     lastName,
     email,
@@ -9,6 +10,7 @@ module.exports = class User {
     allocationDate
   ) {
     this.userId = userId;
+    this.userName = userName;
     this.firstName = firstName;
     this.lastName = lastName;
     this.email = email;
